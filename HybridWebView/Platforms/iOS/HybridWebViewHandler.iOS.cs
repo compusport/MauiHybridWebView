@@ -93,7 +93,7 @@ namespace HybridWebView
                 }
             }
 
-            private async Task<(byte[] ResponseBytes, string ContentType, int StatusCode)> GetResponseBytes(string? url)
+            private async Task<(byte[] ResponseBytes, string ContentType, int StatusCode)> GetResponseBytes(string url)
             {
                 string contentType;
 

@@ -16,10 +16,42 @@ namespace HybridWebView
         }
         public override WebResourceResponse? ShouldInterceptRequest(AWebView? view, IWebResourceRequest? request)
         {
+            if (request?.Url == null || !request.IsForMainFrame)
+                return base.ShouldInterceptRequest(view, request);
+
             var fullUrl = request?.Url?.ToString();
             var requestUri = QueryStringHelper.RemovePossibleQueryString(fullUrl);
 
+            System.Diagnostics.Debug.WriteLine($"ShouldInterceptRequest :{request.IsForMainFrame} {request.IsRedirect} {fullUrl}");
+
+            //if (!requestUri.ToLower().StartsWith(HybridWebView.AppOrigin.ToLower())
+            //    || requestUri.ToLower().Contains("/signalr/")
+            //    || requestUri.ToLower().Contains("/bundles/")
+            //    || (!request.IsForMainFrame && !request.IsRedirect)
+            //    )
+            //{
+            //    System.Diagnostics.Debug.WriteLine($"Skipping ShouldInterceptRequest : {requestUri}");
+            //    return base.ShouldInterceptRequest(view, request);
+            //}
+
             var webView = (HybridWebView)_handler.VirtualView;
+            var cookieManager = Android.Webkit.CookieManager.Instance;
+
+            if (cookieManager == null || webView == null)
+                return base.ShouldInterceptRequest(view, request);
+
+            //var cookies = hybridWebView.Cookies.GetAllCookies();
+            foreach (var item in HybridWebView.AllRequestsCookies)
+            {
+                var val = $"{item.Key}={item.Value}";
+                //var co = cookies.FirstOrDefault(o => o.Name == item.Key);
+                //if (!cookies.Any(o => item.Key == o.Name && item.Value == o.Value && o.Path == "/"))
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"Adding cookie {val}");
+                //    hybridWebView.Cookies.Add(new System.Net.Cookie(item.Key, item.Value, "/", request.Url.Host) { Expires = DateTime.Now.AddYears(1) });
+                //}
+                cookieManager.SetCookie("/", val);
+            }
 
             if (new Uri(requestUri) is Uri uri && HybridWebView.AppOriginUri.IsBaseOf(uri))
             {

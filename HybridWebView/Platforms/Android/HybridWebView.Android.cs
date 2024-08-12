@@ -35,7 +35,46 @@ namespace HybridWebView
 
         private partial void NavigateCore(string url)
         {
-            PlatformWebView.LoadUrl(new Uri(AppOriginUri, url).ToString());
+            var cookieManager = Android.Webkit.CookieManager.Instance;
+            if (cookieManager != null)
+            {
+                foreach (var item in HybridWebView.AllRequestsCookies)
+                {
+                    var val = $"{item.Key}={item.Value}";
+                    //var co = cookies.FirstOrDefault(o => o.Name == item.Key);
+                    //if (!cookies.Any(o => item.Key == o.Name && item.Value == o.Value && o.Path == "/"))
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"Adding cookie {val}");
+                    //    Cookies.Add(new System.Net.Cookie(item.Key, item.Value, "/", AppOriginUri.Host) { Expires = DateTime.Now.AddYears(1) });
+                    //}
+                    cookieManager.SetCookie("/", val);
+                }
+                cookieManager.Flush();
+            }
+
+            PlatformWebView.LoadUrl(new Uri(AppOriginUri, url).ToString(), HybridWebView.AdditionalHeaders);
+        }
+
+        public partial Task ClearAllCookiesAsync()
+        {
+            var cookieManager = Android.Webkit.CookieManager.Instance;
+            if (cookieManager == null)
+                return Task.CompletedTask;
+
+            //Ne pas faire car ca flush les cookies de antiforgery
+            //cookieManager.RemoveAllCookies(null);
+
+            foreach (var item in HybridWebView.AllRequestsCookies)
+            {
+                var val = $"{item.Key}={item.Value}";
+                cookieManager.SetCookie("/", val);
+            }
+            cookieManager.RemoveExpiredCookie();
+            cookieManager.Flush();
+
+            PlatformWebView.ClearCache(true);
+
+            return Task.CompletedTask;
         }
 
         private sealed class HybridWebViewJavaScriptInterface : Java.Lang.Object

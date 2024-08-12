@@ -18,6 +18,12 @@ namespace HybridWebView
         /// </summary>
         public string StartPath { get; set; } = "/";
 
+
+        public static Dictionary<string, string> AllRequestsCookies { get; set; } = new();
+        public static Dictionary<string, string> AdditionalHeaders { get; set; } = new();
+
+        public string? CurrentUrl { get; set; }
+
         /// <summary>
         ///  The path within the app's "Raw" asset resources that contain the web app's contents. For example, if the
         ///  files are located in "ProjectFolder/Resources/Raw/hybrid_root", then set this property to "hybrid_root".
@@ -76,11 +82,16 @@ namespace HybridWebView
 
         private partial void NavigateCore(string url);
 
-
 #if !ANDROID && !IOS && !MACCATALYST && !WINDOWS
         private partial Task InitializeHybridWebView() => throw null!;
 
         private partial void NavigateCore(string url) => throw null!;
+#endif
+
+        public partial Task ClearAllCookiesAsync();
+
+#if !ANDROID && !IOS
+    public partial Task ClearAllCookiesAsync() => throw null!;
 #endif
 
         /// <summary>
@@ -210,12 +221,18 @@ namespace HybridWebView
             var invokeMethod = JSInvokeTarget.GetType().GetMethod(invokeData.MethodName!, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.InvokeMethod);
             if (invokeMethod == null)
             {
+                Debug.WriteLine($"The method {invokeData.MethodName} couldn't be found on the {nameof(JSInvokeTarget)} of type {JSInvokeTarget.GetType().FullName}.");
+#if DEBUG
                 throw new InvalidOperationException($"The method {invokeData.MethodName} couldn't be found on the {nameof(JSInvokeTarget)} of type {JSInvokeTarget.GetType().FullName}.");
+#endif
             }
 
             if (invokeData.ParamValues != null && invokeMethod.GetParameters().Length != invokeData.ParamValues.Length)
             {
+                Debug.WriteLine($"The number of parameters on {nameof(JSInvokeTarget)}'s method {invokeData.MethodName} ({invokeMethod.GetParameters().Length}) doesn't match the number of values passed from JavaScript code ({invokeData.ParamValues.Length}).");
+#if DEBUG
                 throw new InvalidOperationException($"The number of parameters on {nameof(JSInvokeTarget)}'s method {invokeData.MethodName} ({invokeMethod.GetParameters().Length}) doesn't match the number of values passed from JavaScript code ({invokeData.ParamValues.Length}).");
+#endif
             }
 
             var paramObjectValues =

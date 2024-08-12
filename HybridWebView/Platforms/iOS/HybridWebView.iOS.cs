@@ -24,5 +24,10 @@ namespace HybridWebView
 
             PlatformWebView.LoadRequest(request);
         }
+
+        public partial Task ClearAllCookiesAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
