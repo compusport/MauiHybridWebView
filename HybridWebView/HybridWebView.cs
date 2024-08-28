@@ -224,6 +224,8 @@ namespace HybridWebView
                 Debug.WriteLine($"The method {invokeData.MethodName} couldn't be found on the {nameof(JSInvokeTarget)} of type {JSInvokeTarget.GetType().FullName}.");
 #if DEBUG
                 throw new InvalidOperationException($"The method {invokeData.MethodName} couldn't be found on the {nameof(JSInvokeTarget)} of type {JSInvokeTarget.GetType().FullName}.");
+#else
+                return null;
 #endif
             }
 
@@ -232,6 +234,8 @@ namespace HybridWebView
                 Debug.WriteLine($"The number of parameters on {nameof(JSInvokeTarget)}'s method {invokeData.MethodName} ({invokeMethod.GetParameters().Length}) doesn't match the number of values passed from JavaScript code ({invokeData.ParamValues.Length}).");
 #if DEBUG
                 throw new InvalidOperationException($"The number of parameters on {nameof(JSInvokeTarget)}'s method {invokeData.MethodName} ({invokeMethod.GetParameters().Length}) doesn't match the number of values passed from JavaScript code ({invokeData.ParamValues.Length}).");
+#else
+                return null;
 #endif
             }
 
