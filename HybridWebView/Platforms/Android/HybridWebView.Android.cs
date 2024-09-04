@@ -1,4 +1,5 @@
-﻿using Android.Webkit;
+﻿using Android.Views;
+using Android.Webkit;
 using Java.Interop;
 using AWebView = Android.Webkit.WebView;
 
@@ -26,6 +27,18 @@ namespace HybridWebView
             AWebView.SetWebContentsDebuggingEnabled(enabled: EnableWebDevTools);
 
             PlatformWebView.Settings.JavaScriptEnabled = true;
+            PlatformWebView.OverScrollMode = OverScrollMode.Never;
+            //PlatformWebView.Settings.SetAppCacheEnabled(true);
+            PlatformWebView.Settings.BuiltInZoomControls = true;
+            PlatformWebView.Settings.DisplayZoomControls = false;
+            //Fixe texte du bracket si zoomed out
+            PlatformWebView.Settings.MinimumFontSize = 1;
+
+            PlatformWebView.Settings.SetGeolocationEnabled(true);
+            //e.Settings.SetGeolocationDatabasePath(e.Context.FilesDir.Path);
+
+            //Fixe accessibility size increase
+            PlatformWebView.Settings.TextZoom = 100;
 
             _javaScriptInterface = new HybridWebViewJavaScriptInterface(this);
             PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
