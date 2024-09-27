@@ -74,15 +74,16 @@ namespace HybridWebView
             if (cookieManager == null)
                 return Task.CompletedTask;
 
-            //Ne pas faire car ca flush les cookies de antiforgery
-            //cookieManager.RemoveAllCookies(null);
+            // Ne pas faire car ca flush les cookies de antiforgery
+            // cookieManager.RemoveAllCookies(null);
 
             foreach (var item in HybridWebView.AllRequestsCookies)
             {
                 var val = $"{item.Key}={item.Value}";
                 cookieManager.SetCookie("/", val);
             }
-            cookieManager.RemoveExpiredCookie();
+            
+            cookieManager.RemoveSessionCookies(null); // Use RemoveSessionCookies instead of RemoveExpiredCookie
             cookieManager.Flush();
 
             PlatformWebView.ClearCache(true);
