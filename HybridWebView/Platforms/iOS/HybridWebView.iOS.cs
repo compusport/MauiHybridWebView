@@ -1,4 +1,5 @@
 ﻿using Foundation;
+using UIKit;
 using WebKit;
 
 namespace HybridWebView
@@ -25,9 +26,28 @@ namespace HybridWebView
             PlatformWebView.LoadRequest(request);
         }
 
-        public partial Task ClearAllCookiesAsync()
+        public partial async Task ClearAllCookiesAsync()
         {
-            throw new NotImplementedException();
+            if (UIDevice.CurrentDevice.CheckSystemVersion(11, 0))
+            {
+                var store = PlatformWebView.Configuration.WebsiteDataStore.HttpCookieStore;
+
+                var cookies = await store.GetAllCookiesAsync();
+                foreach (var c in cookies)
+                {
+                    await store.DeleteCookieAsync(c);
+                }
+            }
+
+            //foreach (var domain in HybridWebView.AllRequestsCookies)
+            //{
+            //    var domainUrl = NSUrl.FromString(domain.Key);
+            //    foreach (var cookie in NSHttpCookieStorage.SharedStorage.CookiesForUrl(domainUrl))
+            //    {
+            //        NSHttpCookieStorage.SharedStorage.DeleteCookie(cookie);
+            //        _cookieDomains[domain.Key] = domain.Value - 1;
+            //    }
+            //}
         }
     }
 }
