@@ -132,24 +132,30 @@ namespace HybridWebView
 
         public virtual void OnMessageReceived(string message)
         {
-            var messageData = JsonSerializer.Deserialize<WebMessageData>(message);
-            switch (messageData?.MessageType)
+            try
             {
-                case 0: // "raw" message (just a string)
-                    RawMessageReceived?.Invoke(this, new HybridWebViewRawMessageReceivedEventArgs(messageData.MessageContent));
-                    break;
-                case 1: // "invoke" message
-                    if (messageData.MessageContent == null)
-                    {
-                        throw new InvalidOperationException($"Expected invoke message to contain MessageContent, but it was null.");
-                    }
-                    var invokeData = JsonSerializer.Deserialize<JSInvokeMethodData>(messageData.MessageContent)!;
-                    InvokeDotNetMethod(invokeData);
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unknown message type: {messageData?.MessageType}. Message contents: {messageData?.MessageContent}");
+                var messageData = JsonSerializer.Deserialize<WebMessageData>(message);
+                switch (messageData?.MessageType)
+                {
+                    case 0: // "raw" message (just a string)
+                        RawMessageReceived?.Invoke(this, new HybridWebViewRawMessageReceivedEventArgs(messageData.MessageContent));
+                        break;
+                    case 1: // "invoke" message
+                        if (messageData.MessageContent == null)
+                        {
+                            throw new InvalidOperationException($"Expected invoke message to contain MessageContent, but it was null.");
+                        }
+                        var invokeData = JsonSerializer.Deserialize<JSInvokeMethodData>(messageData.MessageContent)!;
+                        InvokeDotNetMethod(invokeData);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown message type: {messageData?.MessageType}. Message contents: {messageData?.MessageContent}");
+                }
             }
-
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"An exception occurred while handling OnMessageReceived: {ex.Message}");
+            }
         }
 
         /// <summary>
