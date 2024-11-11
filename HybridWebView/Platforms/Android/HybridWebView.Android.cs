@@ -18,7 +18,8 @@ namespace HybridWebView
 
         private HybridWebViewJavaScriptInterface? _javaScriptInterface;
 
-        private AWebView PlatformWebView => (AWebView)Handler!.PlatformView!;
+        private MauiHybridWebView PlatformWebView => (MauiHybridWebView)Handler?.PlatformView!;
+
 
         private partial Task InitializeHybridWebView()
         {
@@ -40,8 +41,11 @@ namespace HybridWebView
             //Fixe accessibility size increase
             PlatformWebView.Settings.TextZoom = 100;
 
-            _javaScriptInterface = new HybridWebViewJavaScriptInterface(this);
-            PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
+            if (_javaScriptInterface == null)
+            {
+                _javaScriptInterface = new HybridWebViewJavaScriptInterface(this);
+                PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
+            }
 
             return Task.CompletedTask;
         }

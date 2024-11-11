@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace HybridWebView
@@ -56,6 +57,8 @@ namespace HybridWebView
         /// </summary>
         public event EventHandler<HybridWebViewInitializedEventArgs>? HybridWebViewInitialized;
 
+        private bool isInitialized;
+        public bool IsInitialized => isInitialized;
 
         public void Navigate(string url)
         {
@@ -75,7 +78,11 @@ namespace HybridWebView
 #endif
             });
 
-            Navigate(StartPath);
+            if (!isInitialized)
+            {
+                isInitialized = true;
+                Navigate(StartPath);
+            }
         }
 
         private partial Task InitializeHybridWebView();

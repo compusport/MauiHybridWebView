@@ -1,5 +1,13 @@
-﻿using Android.Webkit;
+﻿using Android.Content;
+using Android.Content.PM;
+using Android.Net.Http;
+using Android.OS;
+using Android.Runtime;
+using Android.Util;
+using Android.Views;
+using Android.Webkit;
 using Java.Time;
+using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
 using System.Text;
 using AWebView = Android.Webkit.WebView;
@@ -8,18 +16,19 @@ namespace HybridWebView
 {
     public class AndroidHybridWebViewClient : MauiWebViewClient
     {
-        private readonly HybridWebViewHandler _handler;
+        private HybridWebViewHandler _handler;
 
         public AndroidHybridWebViewClient(HybridWebViewHandler handler) : base(handler)
         {
             _handler = handler;
         }
+
         public override WebResourceResponse? ShouldInterceptRequest(AWebView? view, IWebResourceRequest? request)
         {
-            if (request?.Url == null || !request.IsForMainFrame)
+            var fullUrl = request?.Url?.ToString();
+            if (fullUrl == null || request == null || !request.IsForMainFrame)
                 return base.ShouldInterceptRequest(view, request);
 
-            var fullUrl = request?.Url?.ToString();
             var requestUri = QueryStringHelper.RemovePossibleQueryString(fullUrl);
 
             System.Diagnostics.Debug.WriteLine($"ShouldInterceptRequest :{request.IsForMainFrame} {request.IsRedirect} {fullUrl}");
@@ -123,7 +132,6 @@ namespace HybridWebView
                 return base.ShouldInterceptRequest(view, request);
             }
         }
-
         private Stream? PlatformOpenAppPackageFile(string filename)
         {
             filename = PathUtils.NormalizePath(filename);
@@ -142,5 +150,57 @@ namespace HybridWebView
             new Dictionary<string, string> {
                 { "Content-Type", contentType },
             };
+    }
+
+    public class HybridWebChromeClient : MauiWebChromeClient
+    {
+        public HybridWebChromeClient(IWebViewHandler handler) : base(handler)
+        {
+            
+        }
+        public override bool OnCreateWindow(AWebView? view, bool isDialog, bool isUserGesture, Message? resultMsg)
+        {
+            return base.OnCreateWindow(view, isDialog, isUserGesture, resultMsg);
+        }
+
+        public override bool OnConsoleMessage(ConsoleMessage? consoleMessage)
+        {
+            return base.OnConsoleMessage(consoleMessage);
+        }
+
+        public override bool OnJsConfirm(AWebView? view, string? url, string? message, JsResult? result)
+        {
+            return base.OnJsConfirm(view, url, message, result);
+        }
+
+        public override bool OnJsPrompt(AWebView? view, string? url, string? message, string? defaultValue, JsPromptResult? result)
+        {
+            return base.OnJsPrompt(view, url, message, defaultValue, result);
+        }
+
+        public override bool OnJsAlert(AWebView? view, string? url, string? message, JsResult? result)
+        {
+            return base.OnJsAlert(view, url, message, result);
+        }
+    }
+
+    public class MauiHybridWebView : MauiWebView
+    {
+        public MauiHybridWebView(WebViewHandler handler, Context context) : base(handler, context) { }
+
+        public override void LoadUrl(string url)
+        {
+            if (url == "about:blank")
+                return;
+
+            base.LoadUrl(url);
+        }
+        public override void LoadUrl(string url, IDictionary<string, string> additionalHttpHeaders)
+        {
+            if (url == "about:blank")
+                return;
+
+            base.LoadUrl(url, additionalHttpHeaders);
+        }
     }
 }
