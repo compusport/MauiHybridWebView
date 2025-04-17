@@ -27,6 +27,9 @@ namespace HybridWebView
             // this, it is enabled for all Android WebViews in the app.
             AWebView.SetWebContentsDebuggingEnabled(enabled: EnableWebDevTools);
 
+            if (PlatformWebView == null)
+                return Task.CompletedTask;
+
             PlatformWebView.Settings.JavaScriptEnabled = true;
             PlatformWebView.OverScrollMode = OverScrollMode.Never;
             //PlatformWebView.Settings.SetAppCacheEnabled(true);
@@ -86,7 +89,7 @@ namespace HybridWebView
                 var val = $"{item.Key}={item.Value}";
                 cookieManager.SetCookie("/", val);
             }
-            
+
             cookieManager.RemoveSessionCookies(null); // Use RemoveSessionCookies instead of RemoveExpiredCookie
             cookieManager.Flush();
 
