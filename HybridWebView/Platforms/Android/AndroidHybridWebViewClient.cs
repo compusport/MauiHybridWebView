@@ -43,92 +43,101 @@ namespace HybridWebView
             //    return base.ShouldInterceptRequest(view, request);
             //}
 
-            var webView = (HybridWebView)_handler.VirtualView;
-            var cookieManager = Android.Webkit.CookieManager.Instance;
-
-            if (cookieManager == null || webView == null)
-                return base.ShouldInterceptRequest(view, request);
-
-            //var cookies = hybridWebView.Cookies.GetAllCookies();
-            foreach (var item in HybridWebView.AllRequestsCookies)
+            try
             {
-                var val = $"{item.Key}={item.Value}";
-                //var co = cookies.FirstOrDefault(o => o.Name == item.Key);
-                //if (!cookies.Any(o => item.Key == o.Name && item.Value == o.Value && o.Path == "/"))
-                //{
-                //    System.Diagnostics.Debug.WriteLine($"Adding cookie {val}");
-                //    hybridWebView.Cookies.Add(new System.Net.Cookie(item.Key, item.Value, "/", request.Url.Host) { Expires = DateTime.Now.AddYears(1) });
-                //}
-                cookieManager.SetCookie("/", val);
-            }
+                var webView = (HybridWebView)_handler.VirtualView;
+                var cookieManager = Android.Webkit.CookieManager.Instance;
 
-            if (new Uri(requestUri) is Uri uri && HybridWebView.AppOriginUri.IsBaseOf(uri))
-            {
-                var relativePath = HybridWebView.AppOriginUri.MakeRelativeUri(uri).ToString().Replace('/', '\\');
+                if (cookieManager == null || webView == null)
+                    return base.ShouldInterceptRequest(view, request);
 
-                string contentType;
-                if (string.IsNullOrEmpty(relativePath))
+                //var cookies = hybridWebView.Cookies.GetAllCookies();
+                foreach (var item in HybridWebView.AllRequestsCookies)
                 {
-                    relativePath = webView.MainFile;
-                    contentType = "text/html";
-                }
-                else
-                {
-                    var requestExtension = Path.GetExtension(relativePath);
-                    contentType = requestExtension switch
-                    {
-                        ".htm" or ".html" => "text/html",
-                        ".js" => "application/javascript",
-                        ".css" => "text/css",
-                        _ => "text/plain",
-                    };
+                    var val = $"{item.Key}={item.Value}";
+                    //var co = cookies.FirstOrDefault(o => o.Name == item.Key);
+                    //if (!cookies.Any(o => item.Key == o.Name && item.Value == o.Value && o.Path == "/"))
+                    //{
+                    //    System.Diagnostics.Debug.WriteLine($"Adding cookie {val}");
+                    //    hybridWebView.Cookies.Add(new System.Net.Cookie(item.Key, item.Value, "/", request.Url.Host) { Expires = DateTime.Now.AddYears(1) });
+                    //}
+                    cookieManager.SetCookie("/", val);
                 }
 
-                Stream? contentStream = null;
-
-                // Check to see if the request is a proxy request.
-                if (relativePath == HybridWebView.ProxyRequestPath)
+                if (new Uri(requestUri) is Uri uri && HybridWebView.AppOriginUri.IsBaseOf(uri))
                 {
-                    var args = new HybridWebViewProxyEventArgs(fullUrl);
+                    var relativePath = HybridWebView.AppOriginUri.MakeRelativeUri(uri).ToString().Replace('/', '\\');
 
-                    // TODO: Don't block async. Consider making this an async call, and then calling DidFinish when done
-                    webView.OnProxyRequestMessage(args).Wait();
-
-                    if (args.ResponseStream != null)
+                    string contentType;
+                    if (string.IsNullOrEmpty(relativePath))
                     {
-                        contentType = args.ResponseContentType ?? "text/plain";
-                        contentStream = args.ResponseStream;
+                        relativePath = webView.MainFile;
+                        contentType = "text/html";
                     }
-                }
+                    else
+                    {
+                        var requestExtension = Path.GetExtension(relativePath);
+                        contentType = requestExtension switch
+                        {
+                            ".htm" or ".html" => "text/html",
+                            ".js" => "application/javascript",
+                            ".css" => "text/css",
+                            _ => "text/plain",
+                        };
+                    }
 
-                if (contentStream == null)
-                {
-                    contentStream = KnownStaticFileProvider.GetKnownResourceStream(relativePath!);
-                }
+                    Stream? contentStream = null;
 
-                if (contentStream is null)
-                {
-                    var assetPath = Path.Combine(((HybridWebView)_handler.VirtualView).HybridAssetRoot!, relativePath!);
-                    contentStream = PlatformOpenAppPackageFile(assetPath);
-                }
+                    // Check to see if the request is a proxy request.
+                    if (relativePath == HybridWebView.ProxyRequestPath)
+                    {
+                        var args = new HybridWebViewProxyEventArgs(fullUrl);
 
-                if (contentStream is null)
-                {
-                    var notFoundContent = "Resource not found (404)";
+                        // TODO: Don't block async. Consider making this an async call, and then calling DidFinish when done
+                        webView.OnProxyRequestMessage(args).Wait();
 
-                    var notFoundByteArray = Encoding.UTF8.GetBytes(notFoundContent);
-                    var notFoundContentStream = new MemoryStream(notFoundByteArray);
+                        if (args.ResponseStream != null)
+                        {
+                            contentType = args.ResponseContentType ?? "text/plain";
+                            contentStream = args.ResponseStream;
+                        }
+                    }
 
-                    return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", GetHeaders("text/plain"), notFoundContentStream);
+                    if (contentStream == null)
+                    {
+                        contentStream = KnownStaticFileProvider.GetKnownResourceStream(relativePath!);
+                    }
+
+                    if (contentStream is null)
+                    {
+                        var assetPath = Path.Combine(((HybridWebView)_handler.VirtualView).HybridAssetRoot!, relativePath!);
+                        contentStream = PlatformOpenAppPackageFile(assetPath);
+                    }
+
+                    if (contentStream is null)
+                    {
+                        var notFoundContent = "Resource not found (404)";
+
+                        var notFoundByteArray = Encoding.UTF8.GetBytes(notFoundContent);
+                        var notFoundContentStream = new MemoryStream(notFoundByteArray);
+
+                        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", GetHeaders("text/plain"), notFoundContentStream);
+                    }
+                    else
+                    {
+                        // TODO: We don't know the content length because Android doesn't tell us. Seems to work without it!
+                        return new WebResourceResponse(contentType, "UTF-8", 200, "OK", GetHeaders(contentType), contentStream);
+                    }
+
                 }
                 else
                 {
-                    // TODO: We don't know the content length because Android doesn't tell us. Seems to work without it!
-                    return new WebResourceResponse(contentType, "UTF-8", 200, "OK", GetHeaders(contentType), contentStream);
+                    return base.ShouldInterceptRequest(view, request);
                 }
             }
-            else
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine("Error getting cookie manager or webview. " + ex.ToString());
                 return base.ShouldInterceptRequest(view, request);
             }
         }
@@ -156,7 +165,7 @@ namespace HybridWebView
     {
         public HybridWebChromeClient(IWebViewHandler handler) : base(handler)
         {
-            
+
         }
         public override bool OnCreateWindow(AWebView? view, bool isDialog, bool isUserGesture, Message? resultMsg)
         {
