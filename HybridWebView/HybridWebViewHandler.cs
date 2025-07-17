@@ -1,5 +1,6 @@
 ﻿using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
+using System.Reflection;
 
 namespace HybridWebView
 {
@@ -25,42 +26,62 @@ namespace HybridWebView
 #if ANDROID
 
         private static Android.Webkit.WebView? _platformWebView;
-        //private static Android.OS.Bundle? _savedState;
 
         protected override Android.Webkit.WebView CreatePlatformView()
         {
-            //var platformWebView = new MauiHybridWebView(this, Context)
-            //{
-            //    LayoutParameters = new Android.Views.ViewGroup.LayoutParams(Android.Views.ViewGroup.LayoutParams.MatchParent, Android.Views.ViewGroup.LayoutParams.MatchParent)
-            //};
-
-            //platformWebView.Settings.JavaScriptEnabled = true;
-            //platformWebView.Settings.DomStorageEnabled = true;
-            //platformWebView.Settings.SetSupportMultipleWindows(true);
-
-            //if (_savedState != null)
-            //    platformWebView.RestoreState(_savedState);
-
-            //return platformWebView;
-            if (_platformWebView == null)
+            if (_platformWebView != null)
             {
-                _platformWebView = new MauiHybridWebView(this, Context)
-                {
-                    LayoutParameters = new Android.Views.ViewGroup.LayoutParams(Android.Views.ViewGroup.LayoutParams.MatchParent, Android.Views.ViewGroup.LayoutParams.MatchParent)
-                };
+                // Detach from any previous parent and hand it to this handler
+                (_platformWebView.Parent as Android.Views.ViewGroup)?.RemoveView(_platformWebView);
 
-                _platformWebView.Settings.JavaScriptEnabled = true;
-                _platformWebView.Settings.DomStorageEnabled = true;
-                _platformWebView.Settings.SetSupportMultipleWindows(true);
-            }
-            else
-            {
                 var handlerField = typeof(MauiWebView).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
                 handlerField?.SetValue(_platformWebView, this);
+
+                return _platformWebView;
             }
+            _platformWebView = new MauiHybridWebView(this, Context)
+            {
+                LayoutParameters = new Android.Views.ViewGroup.LayoutParams(Android.Views.ViewGroup.LayoutParams.MatchParent, Android.Views.ViewGroup.LayoutParams.MatchParent)
+            };
+
+            _platformWebView.Settings.JavaScriptEnabled = true;
+            _platformWebView.Settings.DomStorageEnabled = true;
+            _platformWebView.Settings.SetSupportMultipleWindows(true);
+
+            if (OperatingSystem.IsAndroidVersionAtLeast(23) && Context?.ApplicationInfo?.Flags.HasFlag(Android.Content.PM.ApplicationInfoFlags.HardwareAccelerated) == false)
+            {
+                _platformWebView.SetLayerType(Android.Views.LayerType.Software, null);
+            }
+
 
             return _platformWebView;
         }
+
+        WebViewSource? _cachedSource;     // keep it so databinding isn’t broken
+        string _cachedStartPath;
+
+#if ANDROID
+        public override void SetVirtualView(IView view)
+        {
+            bool reattach = _platformWebView != null;   // we’re re-using the old WebView
+
+            if (reattach && view is HybridWebView wv)
+            {
+                _cachedSource = wv.Source;  // ① remember the original value
+                _cachedStartPath = wv.StartPath;
+                wv.Source = null;       // ② hide it from ProcessSourceWhenReady
+                wv.StartPath = string.Empty;
+            }
+
+            base.SetVirtualView(view);      // MAUI won’t try to navigate
+
+            if (reattach && view is HybridWebView wv2)
+            {
+                //wv2.Source = _cachedSource;  // Can't reset the Source since it navigates
+                wv2.StartPath = _cachedStartPath;
+            }
+        }
+#endif
 
         protected override void ConnectHandler(Android.Webkit.WebView platformView)
         {
@@ -69,36 +90,38 @@ namespace HybridWebView
 
         public static void MapHybridWebViewClient(IWebViewHandler handler, IWebView webView)
         {
-            if (handler is HybridWebViewHandler platformHandler && handler?.PlatformView != null)
+            if (handler is not HybridWebViewHandler platformHandler || handler.PlatformView is null)
+                return;
+
+            var pv = handler.PlatformView;
+
+            if (pv.WebViewClient is AndroidHybridWebViewClient existing)
             {
-                var webViewClient = handler.PlatformView.WebViewClient as AndroidHybridWebViewClient;
-                if (webViewClient == null)
-                {
-                    webViewClient = new AndroidHybridWebViewClient(platformHandler);
-                }
-                
-                handler.PlatformView.SetWebViewClient(webViewClient);
+                // --- 1. update the strong reference inside our own class
+                typeof(AndroidHybridWebViewClient)
+                   .GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance)!
+                   .SetValue(existing, platformHandler);
 
-                var handlerField = typeof(AndroidHybridWebViewClient).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
-                handlerField?.SetValue(webViewClient, platformHandler);
-                
-                handlerField = typeof(MauiWebViewClient).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
-                handlerField?.SetValue(webViewClient, new WeakReference<WebViewHandler?>(platformHandler));
+                // --- 2. update the weak reference inside the base class
+                typeof(MauiWebViewClient)
+                   .GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy)!
+                   .SetValue(existing, new WeakReference<WebViewHandler?>(platformHandler));
 
-
-                // TODO: There doesn't seem to be a way to override MapWebViewClient() in maui/src/Core/src/Handlers/WebView/WebViewHandler.Android.cs
-                // in such a way that it knows of the custom MauiWebViewClient that we're creating. So, we use private reflection to set it on the
-                // instance. We might end up duplicating WebView/BlazorWebView anyway, in which case we wouldn't need this workaround.
-                var webViewClientField = typeof(WebViewHandler).GetField("_webViewClient", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
-
-                // Starting in .NET 8.0 the private field is gone and this call isn't necessary, so we only set if it needed
-                webViewClientField?.SetValue(handler, webViewClient);
-
+                return; // client already present, nothing else to do
             }
+
+            // Otherwise attach a fresh client (first time only)
+            var client = new AndroidHybridWebViewClient(platformHandler);
+            pv.SetWebViewClient(client);
+
+            // wire the base-class field once
+            typeof(MauiWebViewClient)
+               .GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy)!
+               .SetValue(client, new WeakReference<WebViewHandler?>(platformHandler));
         }
 
-		public static void MapHybridWebChromeClient(IWebViewHandler handler, IWebView webView)
-		{
+        public static void MapHybridWebChromeClient(IWebViewHandler handler, IWebView webView)
+        {
             if (handler?.PlatformView == null)
                 return;
 
@@ -111,17 +134,12 @@ namespace HybridWebView
                 var handlerField = typeof(Android.Webkit.WebChromeClient).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
                 handlerField?.SetValue(handler.PlatformView.WebChromeClient, viewHandler);
             }
-		}
+        }
 
         protected override void DisconnectHandler(Android.Webkit.WebView platformView)
-		{
-            //_savedState?.Dispose();
+        {
+            (platformView.Parent as Android.Views.ViewGroup)?.RemoveView(platformView);
 
-            //_savedState = new Android.OS.Bundle();
-            //platformView.SaveState(_savedState);
-
-            //Do not Disconnect to prevent breaking the PlatformView
-            //base.DisconnectHandler(platformView);
         }
 #endif
     }

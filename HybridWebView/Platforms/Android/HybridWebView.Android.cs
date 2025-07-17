@@ -7,15 +7,6 @@ namespace HybridWebView
 {
     partial class HybridWebView
     {
-        private static readonly string AppHostAddress = "0.0.0.0";
-
-        /// <summary>
-        /// Gets the application's base URI. Defaults to <c>https://0.0.0.0/</c>
-        /// </summary>
-        private static readonly string AppOrigin = $"https://{AppHostAddress}/";
-
-        internal static readonly Uri AppOriginUri = new(AppOrigin);
-
         private HybridWebViewJavaScriptInterface? _javaScriptInterface;
 
         private MauiHybridWebView PlatformWebView => (MauiHybridWebView)Handler?.PlatformView!;
@@ -30,7 +21,6 @@ namespace HybridWebView
             if (PlatformWebView == null)
                 return Task.CompletedTask;
 
-            PlatformWebView.Settings.JavaScriptEnabled = true;
             PlatformWebView.OverScrollMode = OverScrollMode.Never;
             //PlatformWebView.Settings.SetAppCacheEnabled(true);
             PlatformWebView.Settings.BuiltInZoomControls = true;
@@ -72,7 +62,7 @@ namespace HybridWebView
                 cookieManager.Flush();
             }
 
-            PlatformWebView.LoadUrl(new Uri(AppOriginUri, url).ToString(), HybridWebView.AdditionalHeaders);
+            PlatformWebView.LoadUrl(new Uri(url).ToString(), HybridWebView.AdditionalHeaders);
         }
 
         public partial Task ClearAllCookiesAsync()

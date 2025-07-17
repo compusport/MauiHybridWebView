@@ -23,6 +23,33 @@ namespace HybridWebView
             _handler = handler;
         }
 
+        private string? _url;
+        public override bool ShouldOverrideUrlLoading(AWebView? view, IWebResourceRequest? request)
+        {
+            _url = request.Url.ToString();
+            System.Diagnostics.Debug.WriteLine($"HybridWebView ShouldOverrideUrlLoading :{request.IsForMainFrame} {request.IsRedirect} {request.Url}");
+            return base.ShouldOverrideUrlLoading(view, request);
+        }
+
+        public override bool ShouldOverrideUrlLoading(AWebView? view, string? url)
+        {
+            _url = url;
+            System.Diagnostics.Debug.WriteLine($"HybridWebView ShouldOverrideUrlLoading :{url}");
+            return base.ShouldOverrideUrlLoading(view, url);
+        }
+
+        public override void OnPageStarted(AWebView? view, string? url, Android.Graphics.Bitmap? favicon)
+        {
+            if (url == "about:blank")
+                return;
+
+            System.Diagnostics.Debug.WriteLine($"HybridWebView OnPageStarted :{url}");
+            //if (_url != url)
+            base.OnPageStarted(view, url, favicon);
+
+            _url = null;
+        }
+
         public override WebResourceResponse? ShouldInterceptRequest(AWebView? view, IWebResourceRequest? request)
         {
             var fullUrl = request?.Url?.ToString();
@@ -31,7 +58,7 @@ namespace HybridWebView
 
             var requestUri = QueryStringHelper.RemovePossibleQueryString(fullUrl);
 
-            System.Diagnostics.Debug.WriteLine($"ShouldInterceptRequest :{request.IsForMainFrame} {request.IsRedirect} {fullUrl}");
+            System.Diagnostics.Debug.WriteLine($"HybridWebView ShouldInterceptRequest :{request.IsForMainFrame} {request.IsRedirect} {fullUrl}");
 
             //if (!requestUri.ToLower().StartsWith(HybridWebView.AppOrigin.ToLower())
             //    || requestUri.ToLower().Contains("/signalr/")
@@ -64,94 +91,12 @@ namespace HybridWebView
                     cookieManager.SetCookie("/", val);
                 }
 
-                if (new Uri(requestUri) is Uri uri && HybridWebView.AppOriginUri.IsBaseOf(uri))
-                {
-                    var relativePath = HybridWebView.AppOriginUri.MakeRelativeUri(uri).ToString().Replace('/', '\\');
-
-                    string contentType;
-                    if (string.IsNullOrEmpty(relativePath))
-                    {
-                        relativePath = webView.MainFile;
-                        contentType = "text/html";
-                    }
-                    else
-                    {
-                        var requestExtension = Path.GetExtension(relativePath);
-                        contentType = requestExtension switch
-                        {
-                            ".htm" or ".html" => "text/html",
-                            ".js" => "application/javascript",
-                            ".css" => "text/css",
-                            _ => "text/plain",
-                        };
-                    }
-
-                    Stream? contentStream = null;
-
-                    // Check to see if the request is a proxy request.
-                    if (relativePath == HybridWebView.ProxyRequestPath)
-                    {
-                        var args = new HybridWebViewProxyEventArgs(fullUrl);
-
-                        // TODO: Don't block async. Consider making this an async call, and then calling DidFinish when done
-                        webView.OnProxyRequestMessage(args).Wait();
-
-                        if (args.ResponseStream != null)
-                        {
-                            contentType = args.ResponseContentType ?? "text/plain";
-                            contentStream = args.ResponseStream;
-                        }
-                    }
-
-                    if (contentStream == null)
-                    {
-                        contentStream = KnownStaticFileProvider.GetKnownResourceStream(relativePath!);
-                    }
-
-                    if (contentStream is null)
-                    {
-                        var assetPath = Path.Combine(((HybridWebView)_handler.VirtualView).HybridAssetRoot!, relativePath!);
-                        contentStream = PlatformOpenAppPackageFile(assetPath);
-                    }
-
-                    if (contentStream is null)
-                    {
-                        var notFoundContent = "Resource not found (404)";
-
-                        var notFoundByteArray = Encoding.UTF8.GetBytes(notFoundContent);
-                        var notFoundContentStream = new MemoryStream(notFoundByteArray);
-
-                        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", GetHeaders("text/plain"), notFoundContentStream);
-                    }
-                    else
-                    {
-                        // TODO: We don't know the content length because Android doesn't tell us. Seems to work without it!
-                        return new WebResourceResponse(contentType, "UTF-8", 200, "OK", GetHeaders(contentType), contentStream);
-                    }
-
-                }
-                else
-                {
-                    return base.ShouldInterceptRequest(view, request);
-                }
+                return base.ShouldInterceptRequest(view, request);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("Error getting cookie manager or webview. " + ex.ToString());
+                System.Diagnostics.Debug.WriteLine("HybridWebView Error getting cookie manager or webview. " + ex.ToString());
                 return base.ShouldInterceptRequest(view, request);
-            }
-        }
-        private Stream? PlatformOpenAppPackageFile(string filename)
-        {
-            filename = PathUtils.NormalizePath(filename);
-
-            try
-            {
-                return _handler.Context.Assets?.Open(filename);
-            }
-            catch (Java.IO.FileNotFoundException)
-            {
-                return null;
             }
         }
 

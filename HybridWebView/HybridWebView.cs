@@ -6,14 +6,6 @@ namespace HybridWebView
 {
     public partial class HybridWebView : WebView
     {
-        internal const string ProxyRequestPath = "proxy";
-
-        /// <summary>
-        /// Specifies the file within the <see cref="HybridAssetRoot"/> that should be served as the main file. The
-        /// default value is <c>index.html</c>.
-        /// </summary>
-        public string? MainFile { get; set; } = "index.html";
-
         /// <summary>
         /// Gets or sets the path for initial navigation after the content is finished loading. The default value is <c>/</c>.
         /// </summary>
@@ -24,12 +16,6 @@ namespace HybridWebView
         public static Dictionary<string, string> AdditionalHeaders { get; set; } = new();
 
         public string? CurrentUrl { get; set; }
-
-        /// <summary>
-        ///  The path within the app's "Raw" asset resources that contain the web app's contents. For example, if the
-        ///  files are located in "ProjectFolder/Resources/Raw/hybrid_root", then set this property to "hybrid_root".
-        /// </summary>
-        public string? HybridAssetRoot { get; set; }
 
         /// <summary>
         /// The target object for JavaScript method invocations. When an "invoke" message is sent from JavaScript,
