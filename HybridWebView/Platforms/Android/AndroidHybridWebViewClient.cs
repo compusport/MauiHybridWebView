@@ -43,8 +43,8 @@ namespace HybridWebView
             if (url == "about:blank")
                 return;
 
-            //if (_handler.IsRestoringState)
-            //    return;
+            if (BeginSkipIfRestoring())
+                return;
 
             System.Diagnostics.Debug.WriteLine($"HybridWebView OnPageStarted :{url}");
             //if (_url != url)
@@ -57,8 +57,9 @@ namespace HybridWebView
             if (url == "about:blank")
                 return;
 
-            //if (_handler.IsRestoringState)
-            //    return;                              // swallow synthetic Finished
+            if (EndSkipIfRestoring())
+                return;                              // swallow synthetic Finished
+
             base.OnPageFinished(view, url);
         }
 
