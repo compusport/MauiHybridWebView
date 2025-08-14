@@ -20,6 +20,7 @@ namespace HybridWebView
             // Legacy Developer Extras setting.
             var enableWebDevTools = ((HybridWebView)VirtualView).EnableWebDevTools;
             config.Preferences.SetValueForKey(NSObject.FromObject(enableWebDevTools), new NSString("developerExtrasEnabled"));
+            config.WebsiteDataStore = WKWebsiteDataStore.DefaultDataStore;
 
             var platformView = new MauiWKWebView(RectangleF.Empty, this, config);
             //platformView.NavigationDelegate = new CSMauiWebViewNavigationDelegate(this);

@@ -43,8 +43,8 @@ namespace HybridWebView
         /// </summary>
         public event EventHandler<HybridWebViewInitializedEventArgs>? HybridWebViewInitialized;
 
-        private bool isInitialized;
-        public bool IsInitialized => isInitialized;
+        private bool _isInitialized;
+        public bool IsInitialized => _isInitialized;
 
         public void Navigate(string url)
         {
@@ -64,9 +64,9 @@ namespace HybridWebView
 #endif
             });
 
-            if (!isInitialized)
+            if (!_isInitialized)
             {
-                isInitialized = true;
+                _isInitialized = true;
                 Navigate(StartPath);
             }
         }
@@ -265,29 +265,6 @@ namespace HybridWebView
         {
             public object? Result { get; set; }
             public bool IsJson { get; set; }
-        }
-
-        internal static async Task<string?> GetAssetContentAsync(string assetPath)
-        {
-            using var stream = await GetAssetStreamAsync(assetPath);
-            if (stream == null)
-            {
-                return null;
-            }
-            using var reader = new StreamReader(stream);
-
-            var contents = reader.ReadToEnd();
-
-            return contents;
-        }
-
-        internal static async Task<Stream?> GetAssetStreamAsync(string assetPath)
-        {
-            if (!await FileSystem.AppPackageFileExistsAsync(assetPath))
-            {
-                return null;
-            }
-            return await FileSystem.OpenAppPackageFileAsync(assetPath);
         }
     }
 }

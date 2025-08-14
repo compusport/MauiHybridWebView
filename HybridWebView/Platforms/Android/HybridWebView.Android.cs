@@ -40,6 +40,9 @@ namespace HybridWebView
                 PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
             }
 
+            Android.Webkit.CookieManager.Instance?.SetAcceptCookie(true);
+            Android.Webkit.CookieManager.Instance?.SetAcceptThirdPartyCookies(PlatformWebView, true);
+
             return Task.CompletedTask;
         }
 

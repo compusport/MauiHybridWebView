@@ -43,11 +43,46 @@ namespace HybridWebView
             if (url == "about:blank")
                 return;
 
+            //if (_handler.IsRestoringState)
+            //    return;
+
             System.Diagnostics.Debug.WriteLine($"HybridWebView OnPageStarted :{url}");
             //if (_url != url)
             base.OnPageStarted(view, url, favicon);
 
             _url = null;
+        }
+        public override void OnPageFinished(AWebView? view, string? url)
+        {
+            if (url == "about:blank")
+                return;
+
+            //if (_handler.IsRestoringState)
+            //    return;                              // swallow synthetic Finished
+            base.OnPageFinished(view, url);
+        }
+
+
+        bool _skipNext;                               // local flag, survives rotations
+        bool BeginSkipIfRestoring()
+        {
+            if (_handler.IsRestoringState && !_skipNext)
+            {
+                _skipNext = true;                    // skip this pair
+                return true;
+            }
+            return false;
+        }
+
+        bool EndSkipIfRestoring()
+        {
+            if (_skipNext)
+            {
+                _skipNext = false;
+                _handler.FinishRestore();            // reset flag in handler
+                return true;
+            }
+            return false;
         }
 
         public override WebResourceResponse? ShouldInterceptRequest(AWebView? view, IWebResourceRequest? request)

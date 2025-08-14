@@ -26,6 +26,8 @@ namespace HybridWebView
 #if ANDROID
 
         private static Android.Webkit.WebView? _platformWebView;
+        internal bool IsRestoringState { get; private set; }   // exposed for the client
+        internal void FinishRestore() => IsRestoringState = false; // called by client
 
         protected override Android.Webkit.WebView CreatePlatformView()
         {
@@ -36,6 +38,8 @@ namespace HybridWebView
 
                 var handlerField = typeof(MauiWebView).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
                 handlerField?.SetValue(_platformWebView, this);
+
+                IsRestoringState = true;
 
                 return _platformWebView;
             }
@@ -139,7 +143,6 @@ namespace HybridWebView
         protected override void DisconnectHandler(Android.Webkit.WebView platformView)
         {
             (platformView.Parent as Android.Views.ViewGroup)?.RemoveView(platformView);
-
         }
 #endif
     }
