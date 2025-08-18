@@ -9,14 +9,14 @@ namespace HybridWebView
     {
         private HybridWebViewJavaScriptInterface? _javaScriptInterface;
 
-        private MauiHybridWebView PlatformWebView => (MauiHybridWebView)Handler?.PlatformView!;
+        private AWebView PlatformWebView => (AWebView)Handler?.PlatformView!;
 
 
         private partial Task InitializeHybridWebView()
         {
             // Note that this is a per-app setting and not per-control, so if you enable
             // this, it is enabled for all Android WebViews in the app.
-            AWebView.SetWebContentsDebuggingEnabled(enabled: EnableWebDevTools);
+            AWebView.SetWebContentsDebuggingEnabled(enabled: true);
 
             if (PlatformWebView == null)
                 return Task.CompletedTask;
@@ -37,8 +37,8 @@ namespace HybridWebView
             if (_javaScriptInterface == null)
             {
                 _javaScriptInterface = new HybridWebViewJavaScriptInterface(this);
-                PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
             }
+            PlatformWebView.AddJavascriptInterface(_javaScriptInterface, "hybridWebViewHost");
 
             Android.Webkit.CookieManager.Instance?.SetAcceptCookie(true);
             Android.Webkit.CookieManager.Instance?.SetAcceptThirdPartyCookies(PlatformWebView, true);
@@ -54,12 +54,6 @@ namespace HybridWebView
                 foreach (var item in HybridWebView.AllRequestsCookies)
                 {
                     var val = $"{item.Key}={item.Value}";
-                    //var co = cookies.FirstOrDefault(o => o.Name == item.Key);
-                    //if (!cookies.Any(o => item.Key == o.Name && item.Value == o.Value && o.Path == "/"))
-                    //{
-                    //    System.Diagnostics.Debug.WriteLine($"Adding cookie {val}");
-                    //    Cookies.Add(new System.Net.Cookie(item.Key, item.Value, "/", AppOriginUri.Host) { Expires = DateTime.Now.AddYears(1) });
-                    //}
                     cookieManager.SetCookie("/", val);
                 }
                 cookieManager.Flush();

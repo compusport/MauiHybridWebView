@@ -26,54 +26,39 @@ namespace HybridWebView
 #if ANDROID
 
         private static Android.Webkit.WebView? _platformWebView;
-        internal bool IsRestoringState { get; private set; }   // exposed for the client
+        public bool IsRestoringState { get; private set; }   // changed to public for external readiness checks
         internal void FinishRestore() => IsRestoringState = false; // called by client
 
         protected override Android.Webkit.WebView CreatePlatformView()
         {
             if (_platformWebView != null)
             {
-                // Detach from any previous parent and hand it to this handler
                 (_platformWebView.Parent as Android.Views.ViewGroup)?.RemoveView(_platformWebView);
-
                 var handlerField = typeof(MauiWebView).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy);
                 handlerField?.SetValue(_platformWebView, this);
-
                 IsRestoringState = true;
-
                 return _platformWebView;
             }
-            _platformWebView = new MauiHybridWebView(this, Context)
-            {
-                LayoutParameters = new Android.Views.ViewGroup.LayoutParams(Android.Views.ViewGroup.LayoutParams.MatchParent, Android.Views.ViewGroup.LayoutParams.MatchParent)
-            };
-
-            _platformWebView.Settings.JavaScriptEnabled = true;
-            _platformWebView.Settings.DomStorageEnabled = true;
-            _platformWebView.Settings.SetSupportMultipleWindows(true);
-
+            _platformWebView = base.CreatePlatformView(); // let base create the view
             if (OperatingSystem.IsAndroidVersionAtLeast(23) && Context?.ApplicationInfo?.Flags.HasFlag(Android.Content.PM.ApplicationInfoFlags.HardwareAccelerated) == false)
             {
                 _platformWebView.SetLayerType(Android.Views.LayerType.Software, null);
             }
-
-
             return _platformWebView;
         }
 
         WebViewSource? _cachedSource;     // keep it so databinding isn’t broken
         string _cachedStartPath;
 
-#if ANDROID
         public override void SetVirtualView(IView view)
         {
             bool reattach = _platformWebView != null;   // we’re re-using the old WebView
 
             if (reattach && view is HybridWebView wv)
             {
-                _cachedSource = wv.Source;  // ① remember the original value
+                _cachedSource = wv.Source;  // remember the original value
                 _cachedStartPath = wv.StartPath;
-                wv.Source = null;       // ② hide it from ProcessSourceWhenReady
+                wv.Source = null;       // hide it from ProcessSourceWhenReady
                 wv.StartPath = string.Empty;
             }
 
@@ -85,7 +70,6 @@ namespace HybridWebView
                 wv2.StartPath = _cachedStartPath;
             }
         }
-#endif
 
         protected override void ConnectHandler(Android.Webkit.WebView platformView)
         {
