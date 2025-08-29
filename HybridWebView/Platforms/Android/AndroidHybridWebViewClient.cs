@@ -69,6 +69,32 @@ namespace HybridWebView
             base.OnPageFinished(view, url);
         }
 
+        // Some Android/WebView versions can invoke OnReceivedError after the handler has been disconnected/restored.
+        // MAUI's base implementation accesses Handler.PlatformView which throws if null. Guard and swallow in that case.
+        public override void OnReceivedError(AWebView? view, IWebResourceRequest? request, WebResourceError? error)
+        {
+            try
+            {
+                base.OnReceivedError(view, request, error);
+            }
+            catch (InvalidOperationException ioe) when (ioe.Message?.Contains("PlatformView cannot be null", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                Android.Util.Log.Warn("HybridWebView", $"OnReceivedError skipped due to disposed PlatformView. error={error?.ErrorCode} desc={error?.Description}");
+            }
+        }
+
+        public override void OnReceivedError(AWebView? view, ClientError errorCode, string? description, string? failingUrl)
+        {
+            try
+            {
+                base.OnReceivedError(view, errorCode, description, failingUrl);
+            }
+            catch (InvalidOperationException ioe) when (ioe.Message?.Contains("PlatformView cannot be null", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                Android.Util.Log.Warn("HybridWebView", $"OnReceivedError (legacy) skipped due to disposed PlatformView. error={errorCode} desc={description} url={failingUrl}");
+            }
+        }
+
 
         bool _skipNext;                               // local flag, survives rotations
         bool BeginSkipIfRestoring()
